@@ -43,6 +43,7 @@ endday = 4
 
 count = 0
 tripduration = []
+totallength = []
 
 for row in cursor:
     #Get the start time from the source data
@@ -67,6 +68,10 @@ for row in cursor:
         #Create line between the two
         tripline = arcpy.Polyline(triplineArray, sr)
 
+        #Store length in a list
+        length = tripline.getLength('GEODESIC')
+        totallength.append(length)
+
         #Get the end time from the source data
         endvalues = row[0],
         endtime = values[0]
@@ -89,8 +94,8 @@ for row in cursor:
         break
 
 print mean(tripduration)
+print mean(totallength)
 
-exit('The above part works')
 
 #Put the results of the insert cursor in a layer file
 arcpy.MakeFeatureLayer_management(output,'temp')
@@ -102,6 +107,9 @@ arcpy.SaveToLayerFile_management('temp', outputname)
 layer = arcpy.mapping.Layer(outputname)
 timelayer = arcpy.mapping.Layer('assets/Time.lyr')
 
+
+
+exit('The above part works')
 #Open empty map document
 mxd = arcpy.mapping.MapDocument('assets/Empty.mxd')
 df = arcpy.mapping.ListDataFrames(mxd)[0]
