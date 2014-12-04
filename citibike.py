@@ -9,7 +9,8 @@ from sys import exit
 #Retrieve file and create update cursor from it
 InputFile = 'data/2014-07 - Citi Bike trip data.csv'
 fields = ['starttime', 'start station latitude', 'start station longitude',\
- 'end station latitude', 'end station longitude', 'stoptime', 'tripduration']
+ 'end station latitude', 'end station longitude', 'stoptime', 'tripduration',\
+ 'gender']
 cursor = arcpy.da.SearchCursor(InputFile, fields)
 
 #Create dataset to put fc in
@@ -25,7 +26,7 @@ arcpy.env.workspace = 'Data/Output.gdb'
 linemap = arcpy.CreateUniqueName('linemap')
 linemap = linemap[16:]
 output = 'Data/Output.gdb/' + linemap
-print output
+print 'Unique name: ' + output
 
 #Create Feature Class to populate
 arcpy.CreateFeatureclass_management('Data/Output.gdb', linemap, \
@@ -45,6 +46,7 @@ endday = 4
 count = 0
 tripduration = []
 totallength = []
+gender = []
 
 for row in cursor:
     #Get the start time from the source data
@@ -84,6 +86,8 @@ for row in cursor:
         #Statistics
         trip = row[6]
         tripduration.append(trip)
+        gendervalue = row[7]
+        gender.append(gendervalue)
 
         #Keep track of amount of features done
         count += 1
@@ -102,17 +106,30 @@ def statanalysis(self, num = 0):
     print std
     minmax = (0, 5000)
     bins = 50
-    plot = plt.hist(self, bins, minmax, color = 'blue')
 
-    #Give it the correct title and axes based on the passed argument
+    #Generate plot based on what needs to be analysed
+    #First, make plot with plt.hist, then add title and labels
+    #and make sure the path is set correctly for the file
     if num == 1:
+        plot = plt.hist(self, bins, minmax, color = 'blue')
         plt.title('Trip Duration Histogram')
         plt.xlabel('Seconds')
         path = 'Trip'
     elif num == 2:
+        plot = plt.hist(self, bins, minmax, color = 'blue')
         plt.title('Total Length Histogram')
         plt.xlabel('Length')
         path = 'Length'
+    elif num == 3:
+        bins = [0, 1, 2, 3]
+        plot = plt.hist(self, bins, color = 'blue')
+        plt.title('Gender Histogram')
+        plt.xlabel('1 = Male, 2 = Female')
+        path = 'Gender'
+
+    #Add mean and median to image
+    text = 'Mean: ' + str(int(mean)) + ' Std: ' + str(int(std))
+    plt.text(0.05, 0.95, text)
 
     #Give Y label
     plt.ylabel('Frequency')
@@ -130,6 +147,7 @@ def statanalysis(self, num = 0):
 
 statanalysis(tripduration, 1)
 statanalysis(totallength, 2)
+statanalysis(gender, 3)
 
 
 #Put the results of the insert cursor in a layer file
