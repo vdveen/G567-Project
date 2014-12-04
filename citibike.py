@@ -94,12 +94,18 @@ for row in cursor:
     elif starttime.day == endday:
         break
 
-print 'Mean Time', np.mean(tripduration)
-print 'Standard Deviation Time', np.std(tripduration)
-print np.histogram(tripduration)
 
-plot = plt.hist(tripduration, 50)
-plt.show()
+def statanalysis(self):
+    mean = np.mean(self)
+    print mean
+    std = np.std(self)
+    print std
+    plot = plt.hist(self, 50)
+    name = linemap + 'stat' + str(self[0]) + '.png'
+    plt.savefig(name, bbox_inches='tight')
+
+statanalysis(tripduration)
+statanalysis(totallength)
 
 #print 'Mean Length', np.mean(totallength)
 #print 'Standard Deviation Length', np.std(totallength)
