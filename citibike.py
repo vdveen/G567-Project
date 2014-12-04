@@ -2,7 +2,8 @@
 
 import arcpy
 import datetime
-from numpy import mean
+import numpy as np
+import matplotlib.pyplot as plt
 from sys import exit
 
 #Retrieve file and create update cursor from it
@@ -93,8 +94,16 @@ for row in cursor:
     elif starttime.day == endday:
         break
 
-print mean(tripduration)
-print mean(totallength)
+print 'Mean Time', np.mean(tripduration)
+print 'Standard Deviation Time', np.std(tripduration)
+print np.histogram(tripduration)
+
+plot = plt.hist(tripduration, 50)
+plt.show()
+
+#print 'Mean Length', np.mean(totallength)
+#print 'Standard Deviation Length', np.std(totallength)
+#print np.histogram(totallength)
 
 
 #Put the results of the insert cursor in a layer file
@@ -107,9 +116,14 @@ arcpy.SaveToLayerFile_management('temp', outputname)
 layer = arcpy.mapping.Layer(outputname)
 timelayer = arcpy.mapping.Layer('assets/Time.lyr')
 
-
+#Clean up the mess
+del cursor, inscursor, row, layer, outputname
 
 exit('The above part works')
+
+
+
+
 #Open empty map document
 mxd = arcpy.mapping.MapDocument('assets/Empty.mxd')
 df = arcpy.mapping.ListDataFrames(mxd)[0]
@@ -128,7 +142,6 @@ layer.saveACopy(copyname)
 print arcpy.GetMessages()
 
 
-#Clean up the mess
-del cursor, inscursor, row, mxd, df, layer, outputname
+del mxd, df
 
 print 'Done now'
