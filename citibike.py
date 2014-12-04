@@ -94,22 +94,42 @@ for row in cursor:
     elif starttime.day == endday:
         break
 
-
-def statanalysis(self):
+#Statistical analysis
+def statanalysis(self, num = 0):
     mean = np.mean(self)
     print mean
     std = np.std(self)
     print std
-    plot = plt.hist(self, 50)
-    name = linemap + 'stat' + str(self[0]) + '.png'
+    minmax = (0, 5000)
+    bins = 50
+    plot = plt.hist(self, bins, minmax, color = 'blue')
+
+    #Give it the correct title and axes based on the passed argument
+    if num == 1:
+        plt.title('Trip Duration Histogram')
+        plt.xlabel('Seconds')
+        path = 'Trip'
+    elif num == 2:
+        plt.title('Total Length Histogram')
+        plt.xlabel('Length')
+        path = 'Length'
+
+    #Give Y label
+    plt.ylabel('Frequency')
+
+    #Make sure ylabel isn't clipping
+    plt.subplots_adjust(left=0.15)
+
+
+    #Give the image an unique name
+    name = linemap + 'stat' + path + '.png'
+
+    #Save the image
     plt.savefig(name, bbox_inches='tight')
+    plt.close()
 
-statanalysis(tripduration)
-statanalysis(totallength)
-
-#print 'Mean Length', np.mean(totallength)
-#print 'Standard Deviation Length', np.std(totallength)
-#print np.histogram(totallength)
+statanalysis(tripduration, 1)
+statanalysis(totallength, 2)
 
 
 #Put the results of the insert cursor in a layer file
