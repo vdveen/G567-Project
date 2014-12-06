@@ -1,35 +1,43 @@
-#Testing out cursors
-
+#Importing needed modules & packages
 import arcpy
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-from sys import exit
+import sys
 
-#Retrieve file and create update cursor from it
-InputFile = 'data/2014-07 - Citi Bike trip data.csv'
+#1. Get folder location
+#2. Get name of output
+#3. Get day to analyse
+
+#Get the location of the original data and retrieve the folder string
+inputfile = arcpy.GetParameterAsText(0)
+folder = inputfile[:-33]
+
+#Create cursor to go trough data
 fields = ['starttime', 'start station latitude', 'start station longitude',\
  'end station latitude', 'end station longitude', 'stoptime', 'tripduration',\
  'gender']
-cursor = arcpy.da.SearchCursor(InputFile, fields)
+cursor = arcpy.da.SearchCursor(inputfile, fields)
 
+arcpy.AddMessage(folder)
 #Create dataset to put fc in
 try:
-    arcpy.CreateFileGDB_management("Data", "Output.gdb")
+    arcpy.CreateFileGDB_management(folder, 'Output.gdb')
 except:
-    print 'GDB already in place'
+    arcpy.AddMessage('GDB already in place')
 
 #Set the dataset as workspace
-arcpy.env.workspace = 'Data/Output.gdb'
+geodb = folder +'Output.gdb'
+arcpy.env.workspace = geodb
 
 #Define unique path name for the line map
-linemap = arcpy.CreateUniqueName('linemap')
-linemap = linemap[16:]
-output = 'Data/Output.gdb/' + linemap
-print 'Unique name: ' + output
+arcpy.env.overwriteOutput = True
+filename = 'Citibike'
+output = geodb + '\\' + filename
+arcpy.AddMessage('Unique name: ' + output)
 
 #Create Feature Class to populate
-arcpy.CreateFeatureclass_management('Data/Output.gdb', linemap, \
+arcpy.CreateFeatureclass_management(geodb, filename, \
 'POLYLINE', None, 'DISABLED', 'DISABLED', 4326)
 
 #Add fields to FC with the start and endtime and the date
@@ -40,9 +48,9 @@ arcpy.AddField_management(output, 'EndTime', 'DATE')
 fields2 = ['SHAPE@', 'StartTime', 'EndTime']
 inscursor = arcpy.da.InsertCursor(output, fields2)
 
-startday = 3
-endday = 4
-
+#Set (default) values of variables before starting loop
+startday = arcpy.GetParameter(1)
+endday = startday + 1
 count = 0
 tripduration = []
 totallength = []
@@ -92,18 +100,17 @@ for row in cursor:
         #Keep track of amount of features done
         count += 1
         if count % 1000 == 0:
-            print count
+            arcpy.AddMessage('Trips Processed: ' + str(count))
+            arcpy.AddMessage('Currently at: ' + str(starttime))
 
     #End at given day
     elif starttime.day == endday:
         break
 
-#Statistical analysis
+#Statistical analysis function
 def statanalysis(self, num = 0):
     mean = np.mean(self)
-    print mean
     std = np.std(self)
-    print std
     minmax = (0, 5000)
     bins = 50
 
@@ -111,18 +118,18 @@ def statanalysis(self, num = 0):
     #First, make plot with plt.hist, then add title and labels
     #and make sure the path is set correctly for the file
     if num == 1:
-        plot = plt.hist(self, bins, minmax, color = 'blue')
+        plot = plt.hist(self, bins, minmax, color = 'grey')
         plt.title('Trip Duration Histogram')
         plt.xlabel('Seconds')
         path = 'Trip'
     elif num == 2:
-        plot = plt.hist(self, bins, minmax, color = 'blue')
+        plot = plt.hist(self, bins, minmax, color = 'grey')
         plt.title('Total Length Histogram')
         plt.xlabel('Length')
         path = 'Length'
     elif num == 3:
         bins = [0, 1, 2, 3]
-        plot = plt.hist(self, bins, color = 'blue')
+        plot = plt.hist(self, bins, color = 'grey')
         plt.title('Gender Histogram')
         plt.xlabel('1 = Male, 2 = Female')
         path = 'Gender'
@@ -137,9 +144,8 @@ def statanalysis(self, num = 0):
     #Make sure ylabel isn't clipping
     plt.subplots_adjust(left=0.15)
 
-
     #Give the image an unique name
-    name = linemap + 'stat' + path + '.png'
+    name = folder + 'Statistics' + path + '.png'
 
     #Save the image
     plt.savefig(name, bbox_inches='tight')
@@ -149,43 +155,18 @@ statanalysis(tripduration, 1)
 statanalysis(totallength, 2)
 statanalysis(gender, 3)
 
-
 #Put the results of the insert cursor in a layer file
-arcpy.MakeFeatureLayer_management(output,'temp')
-outputname = 'Data/' + linemap + '.lyr'
-print outputname
-arcpy.SaveToLayerFile_management('temp', outputname)
+arcpy.MakeFeatureLayer_management('/Citibike','temp')
+outputname = folder + 'Citibike.lyr'
+arcpy.AddMessage(outputname)
+arcpy.SaveToLayerFile_management('temp', outputname, 'ABSOLUTE')
 
-#Get the layer file so it can be edited
-layer = arcpy.mapping.Layer(outputname)
-timelayer = arcpy.mapping.Layer('assets/Time.lyr')
-
-#Clean up the mess
-del cursor, inscursor, row, layer, outputname
-
-exit('The above part works')
-
-
-
-
-#Open empty map document
-mxd = arcpy.mapping.MapDocument('assets/Empty.mxd')
-df = arcpy.mapping.ListDataFrames(mxd)[0]
-print df
-#Copy time settings from time layer:
-arcpy.mapping.UpdateLayerTime(df, layer, timelayer)
-
-#Add layer to map document
-arcpy.mapping.AddLayer(df, layer)
-arcpy.RefreshActiveView
-
-#Save to copy
-arcpy.env.overwriteOutput = True
-copyname =  linemap + '.mxd'
-layer.saveACopy(copyname)
+#Print messages
 print arcpy.GetMessages()
 
+#Clean up the mess
+del cursor, inscursor, row, outputname
 
-del mxd, df
+print arcpy.GetMessages()
 
 print 'Done now'
