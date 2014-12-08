@@ -1,0 +1,49 @@
+By A. van der Veen
+Script: citibike.py
+Current Date: December 8th, 2014
+
+This script takes Citibike data as input. It converts the Citibike data to
+a valid geodatabase and runs a statistical analysis on the data using
+matplotlib. The analysis outputs three histogram images with the mean
+and standard deviation embedded in the image. 
+
+Contents of this zipped folder:
+- Example Data for February of this year
+- Original citibike.py source code
+- ArcPy Toolbox (citibike.tbx)
+
+Make sure to unzip the folder. Please do not move the script in the folder
+to a different location. To use this script tool, add the toolbox to 
+ArcToolbox, open the toolbox and launch the script tool. 
+
+If the script source cannot be found by the script tool in ArcGIS, 
+please right-click on the script tool in ArcToolbox, go to Properties, 
+and correct the source path in the Source tab of the Properties.
+
+Required Modules / Packages:
+- ArcPy
+- Datetime
+- NumPy
+- Matplotlib
+
+The script tool requires the following inputs:
+- Citibike data (e.g. 2014-02 - Citi Bike trip data.csv)
+- Day of the Month (e.g. '19' for 19th of February) 
+
+Data from February is included as an example, but the script can
+load and analyze all recen Citibike data from the site:
+http://www.citibikenyc.com/system-data
+
+It will take around 30 seconds to complete. During the running 
+of the script, it should display how many trips it has processed
+and at what point of the day the script is. 
+
+After running, it should add the following files to the folder:
+- Geodatabase (Output.gdb)
+- Layer file (Citibike.lyr)
+- StatisticsGender.png
+- StatisticsLength.png
+- StatisticsTrip.png
+
+For documentation on the individual steps, please read the 
+inline documentation.

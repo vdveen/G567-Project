@@ -1,42 +1,65 @@
-#Importing needed modules & packages
+#-------------------------------------------------------------------------------
+# Name:        citibike.py
+# Purpose:     To create a layer file and a statistical analysis of  a day
+#              of Citibke open data.
+#
+# Author:      A. van der Veen
+#
+# Created:     10/11/2014
+# Copyright:   (c) vdveen 2014
+#-------------------------------------------------------------------------------
+
+#Importing necessary modules & packages
 import arcpy
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
+from sys import exit
 
-#1. Get folder location
-#2. Get name of output
-#3. Get day to analyse
-
-#Get the location of the original data and retrieve the folder string
+#Get the location of the Citibike data
 inputfile = arcpy.GetParameterAsText(0)
+
+#Remove the last part of the input file string to retrieve the folder it's in
 folder = inputfile[:-33]
 
+#Check if the inputs are acceptable
+if not inputfile.endswith('Bike trip data.csv'):
+    arcpy.AddError('This data is not original Citibike trip data.')
+    exit()
+
+startday = arcpy.GetParameter(1)
+if startday > 30 or startday < 1:
+    arcpy.AddError('The day of the month is not between 1 and 30')
+    exit()
+
 #Create cursor to go trough data
-fields = ['starttime', 'start station latitude', 'start station longitude',\
+try:
+    fields = ['starttime', 'start station latitude', 'start station longitude',\
  'end station latitude', 'end station longitude', 'stoptime', 'tripduration',\
  'gender']
-cursor = arcpy.da.SearchCursor(inputfile, fields)
+    cursor = arcpy.da.SearchCursor(inputfile, fields)
+except:
+    msg = "Couldn't search data fields in " + folder
+    arcpy.AddError(msg)
+    exit()
 
-arcpy.AddMessage(folder)
-#Create dataset to put fc in
+#Create dataset to put fc in, don't create one if there is already one there
 try:
     arcpy.CreateFileGDB_management(folder, 'Output.gdb')
 except:
-    arcpy.AddMessage('GDB already in place')
+    arcpy.AddWarning('No new geodatabase created.')
 
-#Set the dataset as workspace
+#Set the (newly created) GDB as workspace
 geodb = folder +'Output.gdb'
 arcpy.env.workspace = geodb
 
-#Define unique path name for the line map
-arcpy.env.overwriteOutput = True
+#Define path name for the feature class
 filename = 'Citibike'
 output = geodb + '\\' + filename
-arcpy.AddMessage('Unique name: ' + output)
+arcpy.AddMessage('Feature Class: ' + output)
 
 #Create Feature Class to populate
+arcpy.env.overwriteOutput = True
 arcpy.CreateFeatureclass_management(geodb, filename, \
 'POLYLINE', None, 'DISABLED', 'DISABLED', 4326)
 
@@ -49,18 +72,19 @@ fields2 = ['SHAPE@', 'StartTime', 'EndTime']
 inscursor = arcpy.da.InsertCursor(output, fields2)
 
 #Set (default) values of variables before starting loop
-startday = arcpy.GetParameter(1)
 endday = startday + 1
 count = 0
 tripduration = []
 totallength = []
 gender = []
 
+
 for row in cursor:
     #Get the start time from the source data
     values = row[0], #without the comma this line throws a getitem error, wtf
     starttime = values[0]
 
+    #Start reading the rows when the row day equals the given start day
     if starttime.day == startday:
         #Get the coordinates of the start and end
         startLat = row[1]
@@ -68,18 +92,18 @@ for row in cursor:
         endLat = row[3]
         endLon = row[4]
 
-        #Make two points in Arcpy
+        #Make two points out of them in Arcpy
         start = arcpy.Point(startLon,startLat,None,None,0)
         end = arcpy.Point(endLon,endLat,None,None,1)
 
-        #Put them in an array
+        #Put these two points in an array
         triplineArray = arcpy.Array([start,end])
         sr = arcpy.SpatialReference(4326)
 
-        #Create line between the two
+        #Create a line between the two
         tripline = arcpy.Polyline(triplineArray, sr)
 
-        #Store length in a list
+        #Store the line's length in a list
         length = tripline.getLength('GEODESIC')
         totallength.append(length)
 
@@ -91,7 +115,7 @@ for row in cursor:
         newRow = [tripline, starttime, endtime]
         inscursor.insertRow(newRow)
 
-        #Statistics
+        #Append the duration and gender statistics
         trip = row[6]
         tripduration.append(trip)
         gendervalue = row[7]
@@ -100,23 +124,31 @@ for row in cursor:
         #Keep track of amount of features done
         count += 1
         if count % 1000 == 0:
+            #Every 1000 rows, display progress
             arcpy.AddMessage('Trips Processed: ' + str(count))
             arcpy.AddMessage('Currently at: ' + str(starttime))
 
-    #End at given day
+    #End a day later than the given start day
     elif starttime.day == endday:
         break
 
-#Statistical analysis function
+#Put the results of the insert cursor in a new layer file
+arcpy.MakeFeatureLayer_management('/Citibike','temp')
+outputname = folder + 'Citibike.lyr'
+arcpy.AddMessage(outputname)
+arcpy.SaveToLayerFile_management('temp', outputname, 'ABSOLUTE')
+
+#Function to analyse the duration, length and gender lists
 def statanalysis(self, num = 0):
+    #Calculate some standard statistics
     mean = np.mean(self)
     std = np.std(self)
     minmax = (0, 5000)
     bins = 50
 
-    #Generate plot based on what needs to be analysed
-    #First, make plot with plt.hist, then add title and labels
-    #and make sure the path is set correctly for the file
+    #This part generates the plots based on what needs to be analysed
+    #First, it makes plot with plt.hist, then adds a title and labels
+    #and makes sure the path is set correctly for the file
     if num == 1:
         plot = plt.hist(self, bins, minmax, color = 'grey')
         plt.title('Trip Duration Histogram')
@@ -144,29 +176,25 @@ def statanalysis(self, num = 0):
     #Make sure ylabel isn't clipping
     plt.subplots_adjust(left=0.15)
 
-    #Give the image an unique name
+    #Give the image an unique name based on the path variable from the if statement
     name = folder + 'Statistics' + path + '.png'
 
-    #Save the image
+    #Save and close the image
     plt.savefig(name, bbox_inches='tight')
     plt.close()
 
+#Go through the analysis three times, for the trip duration, the length
+#and the gender of the biker
 statanalysis(tripduration, 1)
 statanalysis(totallength, 2)
 statanalysis(gender, 3)
 
-#Put the results of the insert cursor in a layer file
-arcpy.MakeFeatureLayer_management('/Citibike','temp')
-outputname = folder + 'Citibike.lyr'
-arcpy.AddMessage(outputname)
-arcpy.SaveToLayerFile_management('temp', outputname, 'ABSOLUTE')
-
 #Print messages
+msg = 'Created layer file, geodatabase and statistical results are stored \
+at ' + folder
+print arcpy.AddWarning(msg)
 print arcpy.GetMessages()
 
 #Clean up the mess
 del cursor, inscursor, row, outputname
 
-print arcpy.GetMessages()
-
-print 'Done now'
